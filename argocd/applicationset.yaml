@@ -68,17 +68,17 @@ spec:
               patch: |-
                 - op: replace
                   path: /spec/rules/0/host
-                  value: pr-{{number}}.example.com
+                  value: pr-{{number}}.demo.q3dm17.ru
                 - op: replace
                   path: /spec/tls/0/hosts/0
-                  value: pr-{{number}}.example.com
+                  value: pr-{{number}}.demo.q3dm17.ru
             - target:
                 kind: Certificate
                 name: demo-vm
               patch: |-
                 - op: replace
                   path: /spec/dnsNames/0
-                  value: pr-{{number}}.example.com
+                  value: pr-{{number}}.demo.q3dm17.ru
             - target:
                 kind: Service
                 name: demo-vm

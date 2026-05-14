@@ -6,7 +6,7 @@ metadata:
 spec:
   certificateOwnerRef: false
   dnsNames:
-    - pr-placeholder.example.com
+    - pr-placeholder.demo.q3dm17.ru
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt

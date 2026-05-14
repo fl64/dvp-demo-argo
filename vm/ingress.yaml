@@ -6,7 +6,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: pr-placeholder.example.com
+    - host: pr-placeholder.demo.q3dm17.ru
       http:
         paths:
           - path: /
@@ -18,5 +18,5 @@ spec:
                   number: 80
   tls:
     - hosts:
-        - pr-placeholder.example.com
+        - pr-placeholder.demo.q3dm17.ru
       secretName: demo-vm-tls
