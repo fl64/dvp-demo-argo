@@ -59,6 +59,9 @@ spec:
                 - op: replace
                   path: /metadata/name
                   value: pr-{{number}}
+                - op: replace
+                  path: /spec/parameters/administrators/0/name
+                  value: pr-{{number}}
             - target:
                 kind: Ingress
                 name: demo-vm

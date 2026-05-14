@@ -9,6 +9,9 @@ spec:
   description: Preview environment for pull request
   projectTemplateName: default
   parameters:
+    administrators:
+      - subject: Group
+        name: pr-placeholder
     resourceQuota:
       requests:
         cpu: 2
