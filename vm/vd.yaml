@@ -1,0 +1,13 @@
+---
+apiVersion: virtualization.deckhouse.io/v1alpha2
+kind: VirtualDisk
+metadata:
+  name: root-disk
+spec:
+  persistentVolumeClaim:
+    size: 8Gi
+  dataSource:
+    type: ObjectRef
+    objectRef:
+      kind: ClusterVirtualImage
+      name: dvp-demo-argo-image

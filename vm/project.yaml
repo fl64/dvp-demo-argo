@@ -1,0 +1,18 @@
+---
+apiVersion: deckhouse.io/v1alpha2
+kind: Project
+metadata:
+  name: pr-placeholder
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Preview environment for pull request
+  projectTemplateName: default
+  parameters:
+    resourceQuota:
+      requests:
+        cpu: 2
+        memory: 4Gi
+      limits:
+        cpu: 2
+        memory: 4Gi

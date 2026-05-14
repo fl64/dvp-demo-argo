@@ -1,0 +1,10 @@
+---
+apiVersion: virtualization.deckhouse.io/v1alpha2
+kind: ClusterVirtualImage
+metadata:
+  name: dvp-demo-argo-image
+spec:
+  dataSource:
+    type: HTTP
+    http:
+      url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img

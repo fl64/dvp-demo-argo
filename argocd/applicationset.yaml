@@ -1,0 +1,126 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dvp-demo-argo-pr
+  namespace: argocd
+spec:
+  generators:
+    - pullRequest:
+        github:
+          owner: fl64
+          repo: dvp-demo-argo
+          # Without credentials this works only for public repositories and
+          # hits the GitHub rate-limit of 60 req/h per IP.
+          # To raise the limit or to read private PRs, uncomment below and
+          # create a Secret in the argocd namespace with a `token` key:
+          #
+          # apiVersion: v1
+          # kind: Secret
+          # metadata:
+          #   name: github-pr-token
+          #   namespace: argocd
+          # stringData:
+          #   token: ghp_xxxxxxxxxxxxxxxxxxxx
+          #
+          # tokenRef:
+          #   secretName: github-pr-token
+          #   key: token
+        # Match only PRs carrying the "preview" label (optional):
+        # labels:
+        #   - preview
+        requeueAfterSeconds: 60
+  template:
+    metadata:
+      name: 'pr-{{number}}'
+      labels:
+        app.kubernetes.io/component: pr-env
+        pr: '{{number}}'
+      annotations:
+        pr-url: '{{branch_link}}'
+    spec:
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'pr-{{number}}'
+      source:
+        repoURL: https://github.com/fl64/dvp-demo-argo.git
+        targetRevision: '{{head_sha}}'
+        path: vm
+        kustomize:
+          namespace: 'pr-{{number}}'
+          commonAnnotations:
+            pr-number: '{{number}}'
+          patches:
+            - target:
+                kind: Project
+                name: pr-placeholder
+              patch: |-
+                - op: replace
+                  path: /metadata/name
+                  value: pr-{{number}}
+            - target:
+                kind: Ingress
+                name: demo-vm
+              patch: |-
+                - op: replace
+                  path: /spec/rules/0/host
+                  value: pr-{{number}}.example.com
+                - op: replace
+                  path: /spec/tls/0/hosts/0
+                  value: pr-{{number}}.example.com
+            - target:
+                kind: Certificate
+                name: demo-vm
+              patch: |-
+                - op: replace
+                  path: /spec/dnsNames/0
+                  value: pr-{{number}}.example.com
+            - target:
+                kind: Service
+                name: demo-vm
+              patch: |-
+                - op: replace
+                  path: /spec/selector/pr
+                  value: "{{number}}"
+            - target:
+                kind: VirtualMachine
+                name: demo-vm
+              patch: |-
+                - op: replace
+                  path: /metadata/labels/pr
+                  value: "{{number}}"
+                - op: replace
+                  path: /spec/provisioning/userData
+                  value: |
+                    #cloud-config
+                    package_update: true
+                    packages:
+                      - nginx
+                      - qemu-guest-agent
+                    write_files:
+                      - path: /var/www/html/index.html
+                        content: |
+                          <!doctype html>
+                          <html>
+                            <head><title>PR-{{number}}</title></head>
+                            <body><h1>PR-{{number}}</h1></body>
+                          </html>
+                    runcmd:
+                      - systemctl enable --now qemu-guest-agent
+                      - systemctl enable --now nginx
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          # The namespace is created by the Deckhouse Project itself
+          # (sync-wave -1), so CreateNamespace=true is not needed.
+          - ServerSideApply=true
+          - PrunePropagationPolicy=foreground
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

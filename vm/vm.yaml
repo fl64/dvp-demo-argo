@@ -1,0 +1,35 @@
+---
+apiVersion: virtualization.deckhouse.io/v1alpha2
+kind: VirtualMachine
+metadata:
+  name: demo-vm
+  labels:
+    pr: placeholder
+spec:
+  virtualMachineClassName: generic
+  runPolicy: AlwaysOn
+  cpu:
+    cores: 1
+    coreFraction: 50%
+  memory:
+    size: 1Gi
+  disruptions:
+    restartApprovalMode: Automatic
+  provisioning:
+    type: UserData
+    userData: |
+      #cloud-config
+      package_update: true
+      packages:
+        - nginx
+        - qemu-guest-agent
+      write_files:
+        - path: /var/www/html/index.html
+          content: |
+            <!doctype html><html><body><h1>PR placeholder</h1></body></html>
+      runcmd:
+        - systemctl enable --now qemu-guest-agent
+        - systemctl enable --now nginx
+  blockDeviceRefs:
+    - kind: VirtualDisk
+      name: root-disk

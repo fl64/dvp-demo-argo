@@ -1,0 +1,22 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo-vm
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: pr-placeholder.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: demo-vm
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - pr-placeholder.example.com
+      secretName: demo-vm-tls

@@ -1,0 +1,101 @@
+# https://taskfile.dev
+# Argo CD + DVP: PR preview environments
+
+version: "3"
+
+vars:
+  ARGOCD_NS: argocd
+  BOOTSTRAP: argocd/bootstrap.yaml
+  APPSET: argocd/applicationset.yaml
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  deploy:
+    desc: Deploy bootstrap (ClusterVirtualImage) + PR ApplicationSet
+    cmds:
+      - task: deploy-bootstrap
+      - task: deploy-appset
+      - task: status
+
+  deploy-bootstrap:
+    desc: Apply Application that ships ClusterVirtualImage
+    cmds:
+      - echo "🚀 Apply {{.BOOTSTRAP}}"
+      - kubectl apply -f {{.BOOTSTRAP}}
+      - echo "⏳ Wait for Argo CD to sync bootstrap Application"
+      - kubectl -n {{.ARGOCD_NS}} wait --for=jsonpath='{.status.sync.status}=Synced' application/dvp-demo-argo-cluster --timeout=180s
+      - echo "⏳ Wait for ClusterVirtualImage 'dvp-demo-argo-image' to appear"
+      - |
+        until kubectl get cvi/dvp-demo-argo-image >/dev/null 2>&1; do
+          echo "  waiting for CVI to be created…"
+          sleep 3
+        done
+      - echo "⏳ Wait for ClusterVirtualImage to become Ready"
+      - kubectl wait --for=jsonpath='{.status.phase}=Ready' cvi/dvp-demo-argo-image --timeout=600s
+
+  deploy-appset:
+    desc: Apply PR ApplicationSet
+    cmds:
+      - echo "🚀 Apply {{.APPSET}}"
+      - kubectl apply -f {{.APPSET}}
+
+  status:
+    desc: Show Argo CD apps + per-PR namespaces
+    cmds:
+      - echo "── Applications ──"
+      - kubectl -n {{.ARGOCD_NS}} get applications.argoproj.io -l 'app.kubernetes.io/component=pr-env' -o wide || true
+      - echo "── PR namespaces ──"
+      - kubectl get ns -l 'kubernetes.io/metadata.name' -o name | grep '/pr-' || true
+      - echo "── VMs ──"
+      - kubectl get vm -A | grep '^pr-' || true
+
+  render:
+    desc: Render manifests locally with PR=NUMBER (e.g. PR=42 task render)
+    vars:
+      PR: '{{.PR | default "0"}}'
+    cmds:
+      - |
+        kubectl kustomize vm \
+        | sed \
+            -e 's/pr-placeholder/pr-{{.PR}}/g' \
+            -e 's/PR placeholder/PR-{{.PR}}/g'
+
+  pr-logs:
+    desc: 'Watch sync status of one PR app (PR=42 task pr-logs)'
+    vars:
+      PR: '{{.PR | default "0"}}'
+    cmds:
+      - kubectl -n {{.ARGOCD_NS}} describe application pr-{{.PR}}
+
+  pr-delete:
+    desc: 'Force delete one PR env (PR=42 task pr-delete)'
+    vars:
+      PR: '{{.PR | default "0"}}'
+    cmds:
+      - kubectl -n {{.ARGOCD_NS}} delete application pr-{{.PR}} --wait=false || true
+      - kubectl delete project pr-{{.PR}} --wait=false || true
+
+  undeploy-appset:
+    desc: Delete PR ApplicationSet (also tears down all PR apps + namespaces)
+    cmds:
+      - kubectl delete -f {{.APPSET}} || true
+
+  undeploy-bootstrap:
+    desc: Delete bootstrap Application (removes ClusterVirtualImage)
+    cmds:
+      - kubectl delete -f {{.BOOTSTRAP}} || true
+
+  undeploy:
+    desc: Tear everything down (PR apps → bootstrap)
+    cmds:
+      - task: undeploy-appset
+      - echo "⏳ Wait for PR namespaces to disappear"
+      - |
+        while kubectl get ns -o name | grep -q '^namespace/pr-'; do
+          echo "  still draining…"
+          sleep 5
+        done
+      - task: undeploy-bootstrap
