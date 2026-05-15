@@ -6,5 +6,6 @@ resources:
   - vd.yaml
   - vm.yaml
   - service.yaml
+  - np-vm.yaml
   - ingress.yaml
   - cert.yaml

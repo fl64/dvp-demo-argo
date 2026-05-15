@@ -45,7 +45,7 @@ spec:
         namespace: 'pr-{{number}}'
       source:
         repoURL: https://github.com/fl64/dvp-demo-argo.git
-        targetRevision: '{{head_sha}}'
+        targetRevision: master # '{{head_sha}}'
         path: vm
         kustomize:
           namespace: 'pr-{{number}}'
@@ -87,6 +87,13 @@ spec:
                   path: /spec/selector/pr
                   value: "{{number}}"
             - target:
+                kind: NetworkPolicy
+                name: demo-vm
+              patch: |-
+                - op: replace
+                  path: /spec/podSelector/matchLabels/pr
+                  value: "{{number}}"
+            - target:
                 kind: VirtualMachine
                 name: demo-vm
               patch: |-
@@ -97,12 +104,24 @@ spec:
                   path: /spec/provisioning/userData
                   value: |
                     #cloud-config
+                    apt:
+                      primary:
+                        - arches: [default]
+                          uri: http://mirror.yandex.ru/ubuntu
                     package_update: true
                     packages:
                       - nginx
-                      - qemu-guest-agent
+                    users:
+                      - name: demo
+                        # openssl passwd -6 -salt demosalt12345 demo
+                        passwd: $6$demosalt12345$HzEZ07UvoUpYEzh5LCPo8G62tidzEgLBMZWk1YyjN1MnNOEc8VXBcX6gSBu6QuaS2CmfNbMtKQxoViWtDpHaE/
+                        shell: /bin/bash
+                        sudo: ALL=(ALL) ALL
+                        chpasswd: { expire: false }
+                        lock_passwd: false
                     write_files:
                       - path: /var/www/html/index.html
+                        permissions: '0644'
                         content: |
                           <!doctype html>
                           <html>
@@ -110,7 +129,6 @@ spec:
                             <body><h1>PR-{{number}}</h1></body>
                           </html>
                     runcmd:
-                      - systemctl enable --now qemu-guest-agent
                       - systemctl enable --now nginx
       syncPolicy:
         automated:
@@ -120,7 +138,11 @@ spec:
           # The namespace is created by the Deckhouse Project itself
           # (sync-wave -1), so CreateNamespace=true is not needed.
           - ServerSideApply=true
-          - PrunePropagationPolicy=foreground
+          # background — don't block on stuck finalizers (e.g. VD vd-protection),
+          # let kube-controller-manager garbage-collect them in the background.
+          - PrunePropagationPolicy=background
+          - RespectIgnoreDifferences=false
+          - ApplyOutOfSyncOnly=false
         retry:
           limit: 5
           backoff:

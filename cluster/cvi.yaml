@@ -7,4 +7,4 @@ spec:
   dataSource:
     type: HTTP
     http:
-      url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+      url: https://mirror.yandex.ru/ubuntu-cloud-images/noble/20260323/noble-server-cloudimg-amd64.img
